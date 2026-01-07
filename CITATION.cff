@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "Jeśli używasz tego repozytorium w pracy naukowej, zacytuj je."
+title: "BayesPivot (magisterka): Pivot Points + filtr Bayes"
+type: software
+authors:
+  - family-names: "Kamiński"
+    given-names: "Michał"
+version: "0.1.0"
+date-released: "2026-01-07"
+url: "https://github.com/<TWOJ_LOGIN>/Magisterka-Trading-BayesPivot"
+keywords:
+  - trading
+  - pivot points
+  - bayesian filter
+  - backtesting
+  - cryptocurrency
+license: "MIT"

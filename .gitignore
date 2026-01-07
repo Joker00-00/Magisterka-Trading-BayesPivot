@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Dane i wyniki (zostaw lokalnie)
+data/
+trades/
+*.png
+*.csv
+
+# Środowiska
+.venv/
+venv/
+.env
