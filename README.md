@@ -16,20 +16,8 @@ trades/    # wyniki/logi (lokalnie, gitignored)
 ## Wymagania
 
 * Python **3.11+** (testowane również na 3.13)
-* Pakiety: `numpy`, `pandas`, `matplotlib`, `requests` (opcjonalnie: `seaborn`)
+* Pakiety: `numpy`, `pandas`, `matplotlib`, `requests` , `seaborn`)
 
-Instalacja (venv):
-
-```bash
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Linux/macOS:
-# source .venv/bin/activate
-
-pip install -U pip
-pip install numpy pandas matplotlib requests seaborn
-```
 
 ## Uruchamianie
 
