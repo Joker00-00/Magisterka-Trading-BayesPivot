@@ -19,7 +19,7 @@ except ImportError:
 START_DATE = "2024-01-01"
 END_DATE = "2024-12-31"
 SYMBOL = "BTCUSDT"
-INTERVAL = "1h"
+INTERVAL = "1H"
 
 # Koszty
 SPREAD = 2.0

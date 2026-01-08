@@ -19,7 +19,7 @@ except ImportError:
 START_DATE = "2024-01-01"
 END_DATE = "2024-12-31"
 SYMBOL = "BTCUSDT"
-INTERVAL = "15m"
+INTERVAL = "1H"
 SPREAD = 2.0
 
 # Parametry Finalne
