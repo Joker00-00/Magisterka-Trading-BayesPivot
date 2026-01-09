@@ -16,8 +16,8 @@ except ImportError:
 # ==========================================
 # KONFIGURACJA
 # ==========================================
-START_DATE = "2020-01-01"
-END_DATE = "2020-12-31"
+START_DATE = "2023-01-01"
+END_DATE = "2023-12-31"
 SYMBOL = "BTCUSDT"
 INTERVAL = "1h"
 SPREAD = 2.0
@@ -27,7 +27,7 @@ SL_PCT = 0.0150
 B_PCT = 0.0020    
 BAYES_WINDOW = 100
 BAYES_MIN_EVENTS = 100
-BAYES_THRESHOLD_LONG = 0.56
+BAYES_THRESHOLD_LONG = 0.51
 BAYES_THRESHOLD_SHORT = 0.51
 
 OUTPUT_DIR = "trades"

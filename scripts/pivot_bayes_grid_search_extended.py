@@ -21,7 +21,7 @@ except ImportError:
 # KONFIGURACJA BADANIA (ROZSZERZONA)
 # ==========================================
 SYMBOL = "BTCUSDT"
-START_DATE = "2024-01-01"
+START_DATE = "2022-01-01"
 END_DATE = "2024-12-31"
 
 # Stałe parametry (z Twojego najlepszego wyniku)
