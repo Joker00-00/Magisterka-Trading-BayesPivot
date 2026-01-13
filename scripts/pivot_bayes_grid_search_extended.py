@@ -1,15 +1,23 @@
+"""
+pivot_bayes_grid_search_extended.py
+
+Wersja "Snajper":
+- Skupiona na obszarach zidentyfikowanych jako zyskowne (High Bayes, Low Buffer)
+- Pełny Bayes (Beta-Binomial) + Open Exec
+"""
+
 from __future__ import annotations
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import deque
-
 import os, sys
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
-    
+
 # Import loadera
 try:
     from src.data_loader import load_bars
@@ -18,55 +26,60 @@ except ImportError:
     exit()
 
 # ==========================================
-# KONFIGURACJA BADANIA (ROZSZERZONA)
+# KONFIGURACJA (EXTENDED)
 # ==========================================
+
 SYMBOL = "BTCUSDT"
-START_DATE = "2022-01-01"
+START_DATE = "2024-01-01" # Skupiamy się na 2024
 END_DATE = "2024-12-31"
 
-# Stałe parametry (z Twojego najlepszego wyniku)
 SPREAD = 2.0
-B_PCT = 0.0020          # Bufor 0.2%
-BAYES_MIN_EVENTS = 200  # Warm-up (kluczowe!)
-BAYES_WINDOW = 200      # Okno pamięci
+B_PCT = 0.0035            # Wypośrodkowane "Sweet Spot" (między 0.1% a 0.2%)
+BAYES_MIN_EVENTS = 50 
+BAYES_WINDOW = 200
 
-# Shorty ustawiamy sztywno na 0.51 (tak jak w Twoim rekordowym wyniku)
-# Będziemy badać wpływ progu dla Longów oraz Stop Lossa.
-FIXED_SHORT_THRESHOLD = 0.51 
+# Parametry Bayesa (Prior)
+PRIOR_ALPHA = 1.0
+PRIOR_BETA = 1.0
 
-# === ROZSZERZONA SIATKA PARAMETRÓW ===
+# Stały próg Short (zakładamy, że 0.52 jest OK)
+FIXED_SHORT_THRESHOLD = 0.52
 
-# 1. Stop Loss (% ceny) - gęstsza siatka od 0.5% do 3.0%
-# (Co 0.25%, żeby dokładnie trafić w "sweet spot")
+# === ROZSZERZONA SIATKA (Fine Tuning) ===
+
+# 1. SL: Skupiamy się na zakresie 1% - 3%, ale gęściej
 SL_RANGE = [
-    0.0050, 0.0075, 0.0100, 0.0125, 0.0150, 
-    0.0175, 0.0200, 0.0225, 0.0250, 0.0275, 0.0300
+    0.010, 0.012, 0.014, 0.016, 0.018, 
+    0.020, 0.022, 0.024, 0.026, 0.028, 0.030, 0.032, 0.034, 0.036, 0.038, 0.040
 ]
 
-# 2. Próg Bayesa Long - szeroki zakres od 0.48 do 0.58
+# 2. Bayes Long: Badamy wysokie progi (0.54 - 0.60), bo tam było zielono
 BAYES_LONG_RANGE = [
-    0.48, 0.49, 0.50, 0.51, 0.52, 
-    0.53, 0.54, 0.55, 0.56, 0.57, 0.58
+    0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.60
 ]
 
 # ==========================================
-# SILNIK SYMULACJI (Szybki)
+# SILNIK
 # ==========================================
+
 def run_simulation_fast(df: pd.DataFrame, sl_pct: float, bayes_long_threshold: float):
+    
+    opens = df['open'].values
     highs = df['high'].values
     lows = df['low'].values
     closes = df['close'].values
-    n = len(df)
     
+    n = len(df)
     current_equity = 0.0
+    
     history_s1 = deque(maxlen=BAYES_WINDOW)
     history_r1 = deque(maxlen=BAYES_WINDOW)
     
-    # Pre-calc stałej
-    min_events = BAYES_MIN_EVENTS
+    bayes_denom_const = PRIOR_ALPHA + PRIOR_BETA
     
     for i in range(1, n):
         h_prev, l_prev, c_prev = highs[i-1], lows[i-1], closes[i-1]
+        o_curr = opens[i]
         h_curr, l_curr, c_curr = highs[i], lows[i], closes[i]
         
         PP = (h_prev + l_prev + c_prev) / 3.0
@@ -77,50 +90,54 @@ def run_simulation_fast(df: pd.DataFrame, sl_pct: float, bayes_long_threshold: f
         current_sl = c_prev * sl_pct
         
         # Bayes Prob
-        p_r1 = np.mean(history_r1) if len(history_r1) >= min_events else 0.5
-        p_s1 = np.mean(history_s1) if len(history_s1) >= min_events else 0.5
-        
+        n_r1 = len(history_r1)
+        k_r1 = sum(history_r1)
+        if n_r1 >= BAYES_MIN_EVENTS:
+            p_r1 = (PRIOR_ALPHA + k_r1) / (bayes_denom_const + n_r1)
+        else:
+            p_r1 = 0.5
+            
+        n_s1 = len(history_s1)
+        k_s1 = sum(history_s1)
+        if n_s1 >= BAYES_MIN_EVENTS:
+            p_s1 = (PRIOR_ALPHA + k_s1) / (bayes_denom_const + n_s1)
+        else:
+            p_s1 = 0.5
+
         # Sygnały
         event_short = c_prev > (R1 - current_b)
         event_long = c_prev < (S1 + current_b)
         
         if event_short and event_long:
             event_short, event_long = False, False
-
-        # Decyzja
+            
         trade_dir = None
-        
-        # Short (Stały próg 0.51)
         if event_short and p_r1 > FIXED_SHORT_THRESHOLD:
             trade_dir = 'SHORT'
-        # Long (Badany z siatki)
         elif event_long and p_s1 > bayes_long_threshold:
             trade_dir = 'LONG'
-
-        # Egzekucja
-        # Short
-        raw_pnl_short = c_prev - c_curr
-        is_sl_short = (h_curr - c_prev) > current_sl
+            
+        # Exec (Open)
+        raw_pnl_short = o_curr - c_curr
+        is_sl_short = h_curr > (o_curr + current_sl)
         real_pnl_short = (-current_sl - SPREAD) if is_sl_short else (raw_pnl_short - SPREAD)
         
-        # Long
-        raw_pnl_long = c_curr - c_prev
-        is_sl_long = (c_prev - l_curr) > current_sl
+        raw_pnl_long = c_curr - o_curr
+        is_sl_long = l_curr < (o_curr - current_sl)
         real_pnl_long = (-current_sl - SPREAD) if is_sl_long else (raw_pnl_long - SPREAD)
         
-        # Uczenie Bayesa (zawsze!)
         if event_short: history_r1.append(1 if real_pnl_short > 0 else 0)
         if event_long: history_s1.append(1 if real_pnl_long > 0 else 0)
-            
-        # Wynik
+        
         if trade_dir == 'SHORT': current_equity += real_pnl_short
         elif trade_dir == 'LONG': current_equity += real_pnl_long
-            
+        
     return current_equity
 
 # ==========================================
 # MAIN
 # ==========================================
+
 if __name__ == "__main__":
     print(f"Pobieranie danych {SYMBOL}...")
     try:
@@ -135,37 +152,31 @@ if __name__ == "__main__":
             exit()
             
         total_combinations = len(SL_RANGE) * len(BAYES_LONG_RANGE)
-        print(f"Dane gotowe: {len(df)} świec.")
-        print(f"Rozpoczynam Extended Grid Search ({total_combinations} kombinacji)...")
-        print(f"Parametry stałe: Warmup={BAYES_MIN_EVENTS}, ShortThreshold={FIXED_SHORT_THRESHOLD}")
+        print(f"Start Extended Grid Search ({total_combinations} komb.)...")
+        print(f"Buffer={B_PCT*100:.2f}%, ShortThreshold={FIXED_SHORT_THRESHOLD}")
         
         results = np.zeros((len(BAYES_LONG_RANGE), len(SL_RANGE)))
         
-        # Pętla po parametrach
         for i, b_thresh in enumerate(BAYES_LONG_RANGE):
             for j, sl in enumerate(SL_RANGE):
                 profit = run_simulation_fast(df, sl, b_thresh)
                 results[i, j] = profit
                 
-                # Progress bar w konsoli
-                idx = i * len(SL_RANGE) + j + 1
-                if idx % 5 == 0:
-                    print(f"Postęp: {idx}/{total_combinations} ({idx/total_combinations:.1%})", end='\r')
-
+            # Progress bar
+            print(f"Postęp: {(i+1)/len(BAYES_LONG_RANGE):.0%}", end='\r')
+            
         print("\nGenerowanie wykresu...")
         
-        # Rysowanie Heatmapy
         plt.figure(figsize=(14, 10))
         
-        xticklabels = [f"{x*100:.2f}%" for x in SL_RANGE]
+        xticklabels = [f"{x*100:.1f}%" for x in SL_RANGE]
         yticklabels = [f"{y:.2f}" for y in BAYES_LONG_RANGE]
         
-        # Odwracamy oś Y (rosnąco w górę)
-        sns.heatmap(results[::-1], annot=True, fmt=".0f", cmap="RdYlGn", 
-                    xticklabels=xticklabels, yticklabels=yticklabels[::-1])
+        sns.heatmap(results[::-1], annot=True, fmt=".0f", cmap="RdYlGn",
+                   xticklabels=xticklabels, yticklabels=yticklabels[::-1])
         
-        plt.title(f"EXTENDED Profit Heatmap (USD) - {SYMBOL} 2024\nWarmup=200, ShortThreshold={FIXED_SHORT_THRESHOLD}")
-        plt.xlabel("Stop Loss (% ceny)")
+        plt.title(f"EXTENDED Profit Heatmap (Fine Tuning) - {SYMBOL} 2024\nBuffer={B_PCT*100:.2f}%, ShortThreshold={FIXED_SHORT_THRESHOLD}")
+        plt.xlabel("Stop Loss (%)")
         plt.ylabel("Bayes Threshold Long")
         
         plt.tight_layout()
