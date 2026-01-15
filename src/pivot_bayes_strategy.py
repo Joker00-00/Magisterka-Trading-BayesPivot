@@ -23,21 +23,21 @@ except ImportError:
 # ==========================================
 # KONFIGURACJA
 # ==========================================
-START_DATE = "2024-01-01"
-END_DATE = "2024-12-31"
-SYMBOL = "BTCUSDT"
-INTERVAL = "1H"
-SPREAD = 2.0
+START_DATE = "2022-01-01"
+END_DATE = "2025-12-31"
+SYMBOL = "BNBUSDT"
+INTERVAL = "1h"
+SPREAD = 0.05  # Koszt transakcyjny (Spread) w USD
 
 # Parametry Strategii
-SL_PCT = 0.0200
+SL_PCT = 0.015
 B_PCT = 0.0040
 BAYES_WINDOW = 200
 BAYES_MIN_EVENTS = 50  # Zmniejszyłem, bo Bayes działa lepiej na małych próbkach niż średnia
 
 # Progi decyzyjne (Probability Thresholds)
-BAYES_THRESHOLD_LONG = 0.48
-BAYES_THRESHOLD_SHORT = 0.52
+BAYES_THRESHOLD_LONG = 0.0
+BAYES_THRESHOLD_SHORT = 0.0
 
 # Parametry Bayesa (Prior - Rozkład A Priori)
 # Alpha=1.0, Beta=1.0 to rozkład jednostajny (Uniform Prior) - "brak wiedzy początkowej"
@@ -221,13 +221,22 @@ if __name__ == "__main__":
         if not trades_df.empty:
             total_profit = equity[-1]
             max_dd = calculate_max_drawdown(equity)
-            calmar = calculate_calmar_ratio(total_profit, max_dd)
-            
-            print(f"\n=== WYNIK STRATEGII BAYESOWSKIEJ ===")
+            calmar = calculate_calmar_ratio(total_profit, max_dd)         
+            trades_df.to_csv(f"trades/trades_{SYMBOL}_RAW.csv")
+            total_trades = len(trades_df)
+            winning_trades = len(trades_df[trades_df['pnl'] > 0])
+            win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+            #print(f"\n=== WYNIK STRATEGII BAYESOWSKIEJ ===")
+            print(f"\n=== WYNIK STRATEGII PIVOT POINTS ===")
+            print(f"Zakres: {START_DATE} do {END_DATE}")
+            print(f"Symbol: {SYMBOL}")
+            #print(f"Prior: Beta({PRIOR_ALPHA},{PRIOR_BETA})")
+            #print(f"Threshold LONG: {BAYES_THRESHOLD_LONG:.2f}, SHORT: {BAYES_THRESHOLD_SHORT:.2f}")
             print(f"Profit: {total_profit:.2f} USD")
             print(f"MaxDD:  {max_dd:.2f} USD")
             print(f"Calmar: {calmar:.2f}")
-
+            print(f"Liczba transakcji: {total_trades}")
+            print(f"Win Rate: {win_rate:.2f}%")
             # ---------------------------------------------
             # WYKRES EQUITY
             # ---------------------------------------------
@@ -236,8 +245,10 @@ if __name__ == "__main__":
             equity_series = pd.Series(equity_plot[:min_len], index=df.index[1:min_len+1])
 
             plt.figure(figsize=(14, 6))
-            plt.plot(equity_series.index, equity_series.values, label='Bayesian Equity', color='blue', linewidth=1.5)
-            plt.title(f"Bayesian Strategy Equity (Prior: Beta({PRIOR_ALPHA},{PRIOR_BETA}))")
+            #plt.plot(equity_series.index, equity_series.values, label='Bayesian Equity', color='blue', linewidth=1.5)
+            plt.plot(equity_series.index, equity_series.values, label='RAW Equity', color='blue', linewidth=1.5)
+            #plt.title(f"Bayesian Strategy Equity (Prior: Beta({PRIOR_ALPHA},{PRIOR_BETA}))")
+            plt.title(f"RAW Strategy Equity - {SYMBOL}")
             plt.ylabel("Profit ($)")
             plt.xlabel("Date")
             
@@ -250,8 +261,10 @@ if __name__ == "__main__":
             plt.grid(True, alpha=0.3)
             plt.legend()
             plt.tight_layout()
-            plt.savefig("equity_bayes_fixed.png")
-            print("Zapisano: equity_bayes_fixed.png")
+            #plt.savefig("equity_bayes.png")
+            plt.savefig("equity_RAW.png")
+            #print("Zapisano: equity_bayes.png")
+            print("Zapisano: equity_RAW.png")
             plt.show()
 
     except Exception as e:

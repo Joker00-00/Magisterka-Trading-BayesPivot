@@ -12,6 +12,7 @@ data/
 trades/
 *.png
 *.csv
+/wyniki
 
 # Środowiska
 .venv/
