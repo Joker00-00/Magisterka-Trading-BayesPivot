@@ -6,7 +6,7 @@ pivot.py
 pivot_bayes_v2.py
 pivot_bayes_strategy_old.py
 pivot_bayes_strategy_v2_old.py
-
+pivot_bayes_grid_search_old.py
 # Dane i wyniki (zostaw lokalnie)
 data/
 trades/
