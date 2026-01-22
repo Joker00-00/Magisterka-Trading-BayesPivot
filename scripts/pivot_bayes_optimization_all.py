@@ -61,8 +61,8 @@ def run_simulation(df: pd.DataFrame, sl_pct: float, buf_pct: float, b_long: floa
     n = len(df)
     current_equity = 0.0
     
-    history_s1 = deque(maxlen=200)
-    history_r1 = deque(maxlen=200)
+    history_s1 = deque(maxlen=300)
+    history_r1 = deque(maxlen=300)
     
     bayes_denom_const = PRIOR_ALPHA + PRIOR_BETA
     
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     
     res_df.to_csv('optimization_results.csv', index=False)
     print("\n\nTOP 5 WYNIKÓW:")
-    print(res_df.head(5))
+    print(res_df.head(7))
     
     # --- RYSOWANIE HEATMAP (CZYTELNE!) ---
     print("Generowanie zestawu Heatmap...")
